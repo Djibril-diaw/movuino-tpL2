@@ -47,8 +47,8 @@ const int buttonPin = 13;
 int buttonState = 0;  // variable for reading the pushbutton status
 long lastButtonTime = 0;
 int debounceDelay = 400;
-int freq = 10;
-int period = 100;
+float freq = 10;  // fréquence max: 333hz
+float period = 100;
 
 //wifi +UDP variables
 ESP8266WiFiMulti WiFiMulti;
@@ -161,6 +161,125 @@ void Send_Data_From_File() {
   Serial.println("finish sending");
 }
 
+void onTick()
+{
+  
+  if (opMode == 1) {
+    /*
+    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    int sensorValue = analogRead(A0);
+    Serial.print(timer0);
+    Serial.print(" ");
+    Serial.print(ax);
+    Serial.print(" ");
+    Serial.print(ay);
+    Serial.print(" ");
+    Serial.print(az);
+    Serial.print(" ");
+    Serial.print(gx);
+    Serial.print(" ");
+    Serial.print(gy);
+    Serial.print(" ");
+    Serial.print(gz);
+    Serial.print(" ");
+    Serial.println(sensorValue);
+    //delay(2);
+    */
+
+    //Serial.print("Temperature = ");
+    Serial.print(bme.readTemperature());
+    Serial.print(" *C");
+    Serial.print(" \t");
+
+    //Serial.print("Pressure = ");
+    Serial.print(bme.readPressure() / 100.0F);
+    Serial.print(" hPa");
+    Serial.print(" \t");
+
+    //Serial.print(" mesure n° ");
+    Serial.println(sampleNb);
+
+      sampleNb ++;  
+
+  }
+  //print in file
+  else if (opMode == 2) {
+
+    /*
+    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    int sensorValue = analogRead(A0);
+    */
+    //fw.println("toto");
+   // fw.print("S: ");
+       //stop recording if <3.3v or more than 1 hour
+       
+   // if(sensorValue<600 /*|| sampleNb>9000*/) {
+   /*
+       fw.close();
+       opMode=0;
+       Serial.print("Stop recording");
+       digitalWrite(2, HIGH);
+      }
+      else{
+    fw.print(sampleNb);
+    fw.print(" ");
+  //  fw.print(ax);
+  //  fw.print(" ");
+  //  fw.print(ay);
+  //  fw.print(" ");
+  //  fw.print(az);
+  //  fw.print(" ");
+  //  fw.print(gx);
+  //  fw.print(" ");
+  //  fw.print(gy);
+  //  fw.print(" ");
+  //  fw.print(gz);
+  //  fw.print(" ");
+    fw.println(sensorValue);
+    sampleNb++;
+      }
+      */
+    fw.print(bme.readTemperature());
+    fw.print(" *C");
+    fw.print(" \t");
+
+    //Serial.print("Pressure = ");
+    fw.print(bme.readPressure() / 100.0F);
+    fw.print(" hPa");
+    fw.print(" \t");
+
+    //Serial.print(" mesure n° ");
+    fw.println(sampleNb);
+
+    sampleNb ++;  
+    
+
+   
+  }
+  else if(opMode == 3){
+      sampleNb++;
+
+      //get data
+      accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+      //int sensorValue = analogRead(A0);
+      //send udp data
+      Udp.begin(localPort);
+      char msg[30];
+      Udp.beginPacket(host, 2390);
+     // sprintf(msg, "S: %d 2 3 a %d",ax,ay);
+      sprintf(msg, "%d %d %d",ax,ay,az);
+      Udp.write(msg);
+      Udp.endPacket();   
+      Serial.println(ax);
+      Serial.println(ay);
+      Serial.println(az);
+      
+    /*  accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    int sensorValue = analogRead(A0);*/
+  }
+
+}
+
 void setup() {
 
 
@@ -221,6 +340,9 @@ void setup() {
   //init MPU
   Serial.println("Initializing I2C devices...");
   accelgyro.initialize();
+
+ticker1.attach_ms(period, onTick);  
+
 }
 
 void loop() {
@@ -409,10 +531,11 @@ void loop() {
       memory_info();
     }
     else if(inByte.substring(0,1)=="f"){
-      freq = inByte.substring(2).toInt();
+      freq = inByte.substring(2).toFloat();
       period = 1000/freq;
       Serial.println(freq);   
       Serial.println(period);  
+      ticker1.attach_ms(period, onTick);  
       
     }
     else if(inByte.substring(0,1)=="F"){
@@ -422,141 +545,6 @@ void loop() {
     }
     else delay(2);
   }
-  else delay(1); // ici pour changer fréquence
-  //print to serial
-  if (opMode == 1) {
-    timer1=millis(); 
-    if(timer1-startTimer>period) {
-    startTimer=timer1;  
-    /*
-    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-    int sensorValue = analogRead(A0);
-    Serial.print(timer0);
-    Serial.print(" ");
-    Serial.print(ax);
-    Serial.print(" ");
-    Serial.print(ay);
-    Serial.print(" ");
-    Serial.print(az);
-    Serial.print(" ");
-    Serial.print(gx);
-    Serial.print(" ");
-    Serial.print(gy);
-    Serial.print(" ");
-    Serial.print(gz);
-    Serial.print(" ");
-    Serial.println(sensorValue);
-    //delay(2);
-    */
-
-
-
-    //Serial.print("Temperature = ");
-    Serial.print(bme.readTemperature());
-    Serial.print(" *C");
-    Serial.print(" \t");
-
-    //Serial.print("Pressure = ");
-    Serial.print(bme.readPressure() / 100.0F);
-    Serial.print(" hPa");
-    Serial.print(" \t");
-
-    //Serial.print(" mesure n° ");
-    Serial.println(sampleNb);
-
-      sampleNb ++;  
-
-        }
-    else delay(1);
-        
-    
-  }
-  //print in file
-  else if (opMode == 2) {
-   timer1=millis(); 
-    if(timer1-startTimer>period) {
-    startTimer=timer1;  
-    /*
-    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-    int sensorValue = analogRead(A0);
-    */
-    //fw.println("toto");
-   // fw.print("S: ");
-       //stop recording if <3.3v or more than 1 hour
-       
-   // if(sensorValue<600 /*|| sampleNb>9000*/) {
-   /*
-       fw.close();
-       opMode=0;
-       Serial.print("Stop recording");
-       digitalWrite(2, HIGH);
-      }
-      else{
-    fw.print(sampleNb);
-    fw.print(" ");
-  //  fw.print(ax);
-  //  fw.print(" ");
-  //  fw.print(ay);
-  //  fw.print(" ");
-  //  fw.print(az);
-  //  fw.print(" ");
-  //  fw.print(gx);
-  //  fw.print(" ");
-  //  fw.print(gy);
-  //  fw.print(" ");
-  //  fw.print(gz);
-  //  fw.print(" ");
-    fw.println(sensorValue);
-    sampleNb++;
-      }
-      */
-    fw.print(bme.readTemperature());
-    fw.print(" *C");
-    fw.print(" \t");
-
-    //Serial.print("Pressure = ");
-    fw.print(bme.readPressure() / 100.0F);
-    fw.print(" hPa");
-    fw.print(" \t");
-
-    //Serial.print(" mesure n° ");
-    fw.println(sampleNb);
-
-    sampleNb ++;  
-    }
-    else delay(1);
-    //delay(2);
-   
-  }
-  else if(opMode == 3){
-    timer1=millis(); 
-    if(timer1-startTimer>period) {
-      sampleNb++;
-      startTimer=timer1;
-      //get data
-      accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-      //int sensorValue = analogRead(A0);
-      //send udp data
-      Udp.begin(localPort);
-      char msg[30];
-      Udp.beginPacket(host, 2390);
-     // sprintf(msg, "S: %d 2 3 a %d",ax,ay);
-      sprintf(msg, "%d %d %d",ax,ay,az);
-      Udp.write(msg);
-      Udp.endPacket();   
-      Serial.println(ax);
-      Serial.println(ay);
-      Serial.println(az);
-      }
-    else delay(2);
-    /*  accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-    int sensorValue = analogRead(A0);*/
-  }
-  else delay(2);
-  //read_memory();
-  //delay(100);
-
-  
 
   
 }
