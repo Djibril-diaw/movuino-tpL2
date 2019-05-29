@@ -47,8 +47,8 @@ const int buttonPin = 13;
 int buttonState = 0;  // variable for reading the pushbutton status
 long lastButtonTime = 0;
 int debounceDelay = 400;
-float freq = 10;  // fréquence max: 333hz
-float period = 100;
+float freq = 10;  // max frequency: 333hz
+float period = 100; // min period: 3ms
 
 //wifi +UDP variables
 ESP8266WiFiMulti WiFiMulti;
@@ -341,8 +341,9 @@ void setup() {
   Serial.println("Initializing I2C devices...");
   accelgyro.initialize();
 
-ticker1.attach_ms(period, onTick);  
+ticker1.attach_ms(period, onTick);  // activate the ticker, to do a measurement every period
 
+Serial.setTimeout(1); // serial timeout is 1ms to reduce the delay after sending  a command
 }
 
 void loop() {
@@ -367,14 +368,15 @@ void loop() {
         digitalWrite(2, LOW);
       }
     }
-  } 
+  }
   timer0 = millis();
   if (Serial.available() > 0) {
     String inByte = Serial.readStringUntil(13);
     //Serial.println(inByte);
     //Ping
+    Serial.println(inByte);
     if (inByte.substring(0,1) == "?") {
-      Serial.println("?");
+     // Serial.println("?");
     }
     //create dir + files
     else if (inByte.substring(0,1) == "c") {
@@ -410,7 +412,7 @@ void loop() {
       Serial.println("End of listing");
       digitalWrite(2, HIGH);
     }
-    //read
+    //read the data
     else if (inByte.substring(0,1) == "p") {
       Serial.println("Read");
       read_memory();
@@ -452,19 +454,6 @@ void loop() {
       opMode = 0;
       //read_memory();
     }
-    //sending data via udp
-    else if (inByte.substring(0,1) == "s") {
-      Serial.println("Connecting to Wifi");
-      Connect_Wifi();
-     // Serial.println("Sending data ");
-     // Send_Data();
-     // Send_Data_From_File();
-    }
-    else if (inByte.substring(0,1) == "S") {
-      Serial.println("Turning off wifi");
-      WiFi.mode(WIFI_OFF);
-      WiFi.disconnect();
-    }
     //live mode
     else if (inByte.substring(0,1) == "l") {
       if (opMode == 0) {
@@ -485,51 +474,13 @@ void loop() {
         Serial.println("you didn't start the live");
       }
     }
-    //scan networks
-    else if (inByte.substring(0,1) == "x") {
-      Serial.println("Scanning networks");
-      int n = WiFi.scanNetworks();
-      Serial.println("scan done");
-      if (n == 0)
-        Serial.println("no networks found");
-      else
-      {
-        Serial.print(n);
-        Serial.println(" networks found");
-        for (int i = 0; i < n; ++i)
-        {
-          // Print SSID and RSSI for each network found
-          Serial.print(i + 1);
-          Serial.print(": ");
-          Serial.print(WiFi.SSID(i));
-          Serial.print(" (");
-          Serial.print(WiFi.RSSI(i));
-          Serial.print(")");
-          Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
-          delay(10);
-        }
-      }
-      Serial.println("");
-      // Wait a bit before scanning again
-      delay(5000);
-    }
-    //send data live via udp 
-    else if(inByte.substring(0,1)=="u"){
-       Serial.println("Start UDP");
-       Connect_Wifi(); 
-       startTimer=millis(); 
-       opMode = 3;
-    }
-    else if(inByte.substring(0,1)=="U"){
-      Serial.println("Stop UDP");
-      opMode = 0;
-      sampleNb=0;
-    }
+    //file info
     else if(inByte.substring(0,1)=="i"){
       Serial.println("Files info : ");
       list_files();
       memory_info();
     }
+    // determines the frequency of the measurements
     else if(inByte.substring(0,1)=="f"){
       freq = inByte.substring(2).toFloat();
       period = 1000/freq;
@@ -538,13 +489,11 @@ void loop() {
       ticker1.attach_ms(period, onTick);  
       
     }
+    // prints the frequency
     else if(inByte.substring(0,1)=="F"){
       Serial.print("f = ");
       Serial.print(freq);
       Serial.println(" Hz");
     }
-    else delay(2);
   }
-
-  
 }
