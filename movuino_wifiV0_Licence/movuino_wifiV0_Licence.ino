@@ -101,7 +101,7 @@ void Connect_Wifi() {
   while (WiFiMulti.run() != WL_CONNECTED) {
     Serial.println("connecting ..");
     //WiFi.begin("MotoG3", "z12345678");
-    WiFiMulti.addAP("MotoG3", "z12345678");
+    WiFiMulti.addAP("AndroidAP", "ssxw9961");
     delay(500);
   }
   Serial.println("");
@@ -260,19 +260,29 @@ void onTick()
       sampleNb++;
 
       //get data
-      accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+      //accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
       //int sensorValue = analogRead(A0);
       //send udp data
       Udp.begin(localPort);
       char msg[30];
       Udp.beginPacket(host, 2390);
-     // sprintf(msg, "S: %d 2 3 a %d",ax,ay);
-      sprintf(msg, "%d %d %d",ax,ay,az);
+      // sprintf(msg, "S: %d 2 3 a %d",ax,ay);
+      sprintf(msg, "%d %d %d",bme.readTemperature()," *C"," \t",bme.readPressure() / 100.0F, " hPa"," \t", sampleNb);
       Udp.write(msg);
       Udp.endPacket();   
-      Serial.println(ax);
-      Serial.println(ay);
-      Serial.println(az);
+      sampleNb ++;  
+      //Serial.print("Temperature = ");
+      Serial.print(bme.readTemperature());
+      Serial.print(" *C");
+      Serial.print(" \t");
+
+      //Serial.print("Pressure = ");
+      Serial.print(bme.readPressure() / 100.0F);
+      Serial.print(" hPa");
+      Serial.print(" \t");
+    
+    //Serial.print(" mesure n° ");
+    Serial.println(sampleNb);
       
     /*  accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
     int sensorValue = analogRead(A0);*/
@@ -494,6 +504,59 @@ void loop() {
       Serial.print("f = ");
       Serial.print(freq);
       Serial.println(" Hz");
+    }
+        //sending data via udp
+    else if (inByte.substring(0,1) == "s") {
+      Serial.println("Connecting to Wifi");
+      Connect_Wifi();
+     // Serial.println("Sending data ");
+     // Send_Data();
+     // Send_Data_From_File();
+    }
+    else if (inByte.substring(0,1) == "S") {
+      Serial.println("Turning off wifi");
+      WiFi.mode(WIFI_OFF);
+      WiFi.disconnect();
+    }
+        //scan networks
+    else if (inByte.substring(0,1) == "x") {
+      Serial.println("Scanning networks");
+      int n = WiFi.scanNetworks();
+      Serial.println("scan done");
+      if (n == 0)
+        Serial.println("no networks found");
+      else
+      {
+        Serial.print(n);
+        Serial.println(" networks found");
+        for (int i = 0; i < n; ++i)
+        {
+          // Print SSID and RSSI for each network found
+          Serial.print(i + 1);
+          Serial.print(": ");
+          Serial.print(WiFi.SSID(i));
+          Serial.print(" (");
+          Serial.print(WiFi.RSSI(i));
+          Serial.print(")");
+          Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
+          delay(10);
+        }
+      }
+      Serial.println("");
+      // Wait a bit before scanning again
+      delay(5000);
+    }
+    //send data live via udp 
+    else if(inByte.substring(0,1)=="u"){
+       Serial.println("Start UDP");
+       Connect_Wifi(); 
+       startTimer=millis(); 
+       opMode = 3;
+    }
+    else if(inByte.substring(0,1)=="U"){
+      Serial.println("Stop UDP");
+      opMode = 0;
+      sampleNb=0;
     }
   }
 }
