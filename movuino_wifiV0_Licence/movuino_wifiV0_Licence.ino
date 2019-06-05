@@ -1,19 +1,41 @@
+#include <ETH.h>
+#include <WiFi.h>
+#include <WiFiAP.h>
+#include <WiFiClient.h>
+#include <WiFiGeneric.h>
+#include <WiFiMulti.h>
+#include <WiFiScan.h>
+#include <WiFiServer.h>
+#include <WiFiSTA.h>
+#include <WiFiType.h>
+#include <WiFiUdp.h>
+
 //V0.3 added UDP
 //0.31b testing write on memory until no battery or no space
 
-#include "FS.h"
-#include <ESP8266WiFi.h>
-#include <ESP8266WiFiMulti.h>
-#include <WiFiUdp.h>
-#include "Wire.h"
 
+
+#include "FS.h"
+#include "SPIFFS.h"
+#include "Wire.h"
+#include <ESPmDNS.h>
 
 // I2Cdev and MPU6050 must be installed as libraries, or else the .cpp/.h files
 // for both classes must be in the include path of your project
 #include "I2Cdev.h"
 #include "MPU6050.h"
 
+#include <SPI.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
+
+#include <Ticker.h>  //Ticker Library
+
 // #include <i2c_adc_ads7828.h>
+
+Adafruit_BME280 bme; // I2C
+
+Ticker ticker1;
 
 
 // device 0
@@ -38,8 +60,11 @@ const int buttonPin = 13;
 int buttonState = 0;  // variable for reading the pushbutton status
 long lastButtonTime = 0;
 int debounceDelay = 400;
+float freq = 10;  // max frequency: 333hz
+float period = 100; // min period: 3ms
+
 //wifi +UDP variables
-ESP8266WiFiMulti WiFiMulti;
+WiFiMulti WiFiMulti;
 WiFiClient client;
 const uint16_t port = 1000;
 const char * host = "192.168.43.38"; // ip or dns
@@ -49,6 +74,7 @@ unsigned int localPort = 2390;      // local port to listen on
 WiFiUDP Udp;
 
 File fw;
+/*
 void memory_info(){
     FSInfo fs_info;
     SPIFFS.info(fs_info);
@@ -89,7 +115,7 @@ void Connect_Wifi() {
   while (WiFiMulti.run() != WL_CONNECTED) {
     Serial.println("connecting ..");
     //WiFi.begin("MotoG3", "z12345678");
-    WiFiMulti.addAP("MotoG3", "z12345678");
+    WiFiMulti.addAP("AndroidAP", "ssxw9961");
     delay(500);
   }
   Serial.println("");
@@ -117,7 +143,7 @@ void Send_Data() {
   /* Udp.write(msg);
     Udp.endPacket();
     time0=micros();*/
-}
+// }  
 void Send_Data_From_File() {
   Udp.begin(localPort);
   char msg[45];
@@ -135,7 +161,7 @@ void Send_Data_From_File() {
     line.toCharArray(msg, line.length());
     //sprintf(msg2, "S: 1 2 3 a ");
     // toto.toCharArray(msg2, 20);
-    Udp.write(msg);
+    Udp.print(msg);
     Udp.endPacket();
     Serial.print(lineNb);
     Serial.print("length :");
@@ -149,7 +175,147 @@ void Send_Data_From_File() {
   Serial.println("finish sending");
 }
 
+void onTick()
+{
+  
+  if (opMode == 1) {
+    /*
+    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    int sensorValue = analogRead(A0);
+    Serial.print(timer0);
+    Serial.print(" ");
+    Serial.print(ax);
+    Serial.print(" ");
+    Serial.print(ay);
+    Serial.print(" ");
+    Serial.print(az);
+    Serial.print(" ");
+    Serial.print(gx);
+    Serial.print(" ");
+    Serial.print(gy);
+    Serial.print(" ");
+    Serial.print(gz);
+    Serial.print(" ");
+    Serial.println(sensorValue);
+    //delay(2);
+    */
+
+    //Serial.print("Temperature = ");
+    Serial.print(bme.readTemperature());
+    Serial.print(" *C");
+    Serial.print(" \t");
+
+    //Serial.print("Pressure = ");
+    Serial.print(bme.readPressure() / 100.0F);
+    Serial.print(" hPa");
+    Serial.print(" \t");
+
+    //Serial.print(" mesure n° ");
+    Serial.println(sampleNb);
+
+      sampleNb ++;  
+
+  }
+  //print in file
+  else if (opMode == 2) {
+
+    /*
+    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    int sensorValue = analogRead(A0);
+    */
+    //fw.println("toto");
+   // fw.print("S: ");
+       //stop recording if <3.3v or more than 1 hour
+       
+   // if(sensorValue<600 /*|| sampleNb>9000*/) {
+   /*
+       fw.close();
+       opMode=0;
+       Serial.print("Stop recording");
+       digitalWrite(2, HIGH);
+      }
+      else{
+    fw.print(sampleNb);
+    fw.print(" ");
+  //  fw.print(ax);
+  //  fw.print(" ");
+  //  fw.print(ay);
+  //  fw.print(" ");
+  //  fw.print(az);
+  //  fw.print(" ");
+  //  fw.print(gx);
+  //  fw.print(" ");
+  //  fw.print(gy);
+  //  fw.print(" ");
+  //  fw.print(gz);
+  //  fw.print(" ");
+    fw.println(sensorValue);
+    sampleNb++;
+      }
+      */
+    fw.print(bme.readTemperature());
+    fw.print(" *C");
+    fw.print(" \t");
+
+    //Serial.print("Pressure = ");
+    fw.print(bme.readPressure() / 100.0F);
+    fw.print(" hPa");
+    fw.print(" \t");
+
+    //Serial.print(" mesure n° ");
+    fw.println(sampleNb);
+
+    sampleNb ++;  
+    
+
+   
+  }
+  else if(opMode == 3){
+      sampleNb++;
+
+      //get data
+      //accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+      //int sensorValue = analogRead(A0);
+      //send udp data
+      Udp.begin(localPort);
+      char msg[30];
+      Udp.beginPacket(host, 2390);
+      // sprintf(msg, "S: %d 2 3 a %d",ax,ay);
+      sprintf(msg, "%d %d %d",bme.readTemperature()," *C"," \t",bme.readPressure() / 100.0F, " hPa"," \t", sampleNb);
+      //while (replyPacket[i] != 0) Udp.write((uint8_t)msg[i++]);
+      Udp.print(msg);
+      Udp.endPacket();   
+      sampleNb ++;  
+      //Serial.print("Temperature = ");
+      Serial.print(bme.readTemperature());
+      Serial.print(" *C");
+      Serial.print(" \t");
+
+      //Serial.print("Pressure = ");
+      Serial.print(bme.readPressure() / 100.0F);
+      Serial.print(" hPa");
+      Serial.print(" \t");
+    
+    //Serial.print(" mesure n° ");
+    Serial.println(sampleNb);
+      
+    /*  accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    int sensorValue = analogRead(A0);*/
+  }
+
+}
+
 void setup() {
+
+
+    bool status;
+    status = bme.begin(0x76);  
+    if (!status) {
+        Serial.println("Could not find a valid BME280 sensor, check wiring!");
+        while (1);
+    }  
+
+  
   Serial.begin(115200);
   Wire.begin();
   // enable I2C communication
@@ -199,6 +365,10 @@ void setup() {
   //init MPU
   Serial.println("Initializing I2C devices...");
   accelgyro.initialize();
+
+ticker1.attach_ms(period, onTick);  // activate the ticker, to do a measurement every period
+
+Serial.setTimeout(1); // serial timeout is 1ms to reduce the delay after sending  a command
 }
 
 void loop() {
@@ -226,14 +396,15 @@ void loop() {
   }
   timer0 = millis();
   if (Serial.available() > 0) {
-    char inByte = Serial.read();
+    String inByte = Serial.readStringUntil(13);
     //Serial.println(inByte);
     //Ping
-    if (inByte == '?') {
-      Serial.println("?");
+    Serial.println(inByte);
+    if (inByte.substring(0,1) == "?") {
+     // Serial.println("?");
     }
     //create dir + files
-    else if (inByte == 'c') {
+    else if (inByte.substring(0,1) == "c") {
       Serial.println("Create file");
 
       File f = SPIFFS.open("/data/1.txt", "r");
@@ -253,75 +424,117 @@ void loop() {
       else Serial.println("File exist!");
     }
     //dir
-    else if (inByte == 'd') {
+    else if (inByte.substring(0,1) == "d") {
       Serial.println("Listing dir :");
       digitalWrite(2, LOW);
-      Dir dir = SPIFFS.openDir("/data");
-      while (dir.next()) {
-        Serial.print(dir.fileName());
-        File f = dir.openFile("r");
+      File dir = SPIFFS.open("/data"); // ESP8266: Dir dir = SPIFFS.open("/data");
+      for (int cnt = 0; true; ++cnt) {
+        Serial.print(dir.name()); // ESP8266: Serial.print(dir.fileName());
+        File f = dir.openNextFile("r"); // ESP8266: File f = dir.openFile("r");
         Serial.print(" ");
         Serial.println(f.size());
       }
       Serial.println("End of listing");
       digitalWrite(2, HIGH);
     }
-    //read
-    else if (inByte == 'p') {
+    //read the data
+    else if (inByte.substring(0,1) == "p") {
       Serial.println("Read");
-      read_memory();
+//      read_memory();
       Serial.println("End of Read");
     }
     //recording mode
-    else if (inByte == 'r') {
+    else if (inByte.substring(0,1) == "r") {
+      if (opMode == 0) {
       Serial.println("Recording");
       fw = SPIFFS.open("/data/1.txt", "w+");
       startTimer=millis(); 
       opMode = 2;
+      }
+      else {
+        Serial.println("stop the live before recording");
+      }
       //digitalWrite(2, LOW);
     }
     //stop recording mode
-    else if (inByte == 'R') {
+    else if (inByte.substring(0,1) == "R") {
+      if (opMode == 2) {      
       fw.close();
       //reset sample nb
       sampleNb=0;
       Serial.println("Stop recording");
       digitalWrite(2, HIGH);
       opMode = 0;
+      }
+      else { 
+        Serial.println("you didn't start the recording");
+      }
       //read_memory();
     }
     //delete file
-    else if (inByte == 'P') {
+    else if (inByte.substring(0,1) == "P") {
       Serial.println("Deleting file");
       SPIFFS.remove("/data/1.txt");
       Serial.println("deletion");
       opMode = 0;
       //read_memory();
     }
-    //sending data via udp
-    else if (inByte == 's') {
+    //live mode
+    else if (inByte.substring(0,1) == "l") {
+      if (opMode == 0) {
+      Serial.println("Start live");
+      opMode = 1; //old 3
+      }
+      else {
+        Serial.println("stop recording before beginning the live");
+      }
+    }
+    //quit live mode
+    else if (inByte.substring(0,1) == "L") {
+      if (opMode == 1) {
+      opMode = 0;
+      sampleNb = 0;
+      }
+      else {
+        Serial.println("you didn't start the live");
+      }
+    }
+    //file info
+    else if(inByte.substring(0,1)=="i"){
+      Serial.println("Files info : ");
+//      list_files();
+//      memory_info();
+    }
+    // determines the frequency of the measurements
+    else if(inByte.substring(0,1)=="f"){
+      freq = inByte.substring(2).toFloat();
+      period = 1000/freq;
+      Serial.println(freq);   
+      Serial.println(period);  
+      ticker1.attach_ms(period, onTick);  
+      
+    }
+    // prints the frequency
+    else if(inByte.substring(0,1)=="F"){
+      Serial.print("f = ");
+      Serial.print(freq);
+      Serial.println(" Hz");
+    }
+        //sending data via udp
+    else if (inByte.substring(0,1) == "s") {
       Serial.println("Connecting to Wifi");
-      Connect_Wifi();
+//      Connect_Wifi();
      // Serial.println("Sending data ");
      // Send_Data();
      // Send_Data_From_File();
     }
-    else if (inByte == 'S') {
+    else if (inByte.substring(0,1) == "S") {
       Serial.println("Turning off wifi");
       WiFi.mode(WIFI_OFF);
       WiFi.disconnect();
     }
-    //live mode
-    else if (inByte == 'l') {
-      Serial.println("Start live");
-      opMode = 1; //old 3
-    }
-    //quit live mode
-    else if (inByte == 'L') {
-      opMode = 0;
-    }
-    //scan networks
-    else if (inByte == 'x') {
+        //scan networks
+    else if (inByte.substring(0,1) == "x") {
       Serial.println("Scanning networks");
       int n = WiFi.scanNetworks();
       Serial.println("scan done");
@@ -340,8 +553,8 @@ void loop() {
           Serial.print(" (");
           Serial.print(WiFi.RSSI(i));
           Serial.print(")");
-          Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
-          delay(10);
+          Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? " " : "*"); // ESP8266: Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
+          delay(10); 
         }
       }
       Serial.println("");
@@ -349,113 +562,16 @@ void loop() {
       delay(5000);
     }
     //send data live via udp 
-    else if(inByte=='u'){
+    else if(inByte.substring(0,1)=="u"){
        Serial.println("Start UDP");
-       Connect_Wifi(); 
+//       Connect_Wifi(); 
        startTimer=millis(); 
        opMode = 3;
     }
-    else if(inByte=='U'){
+    else if(inByte.substring(0,1)=="U"){
       Serial.println("Stop UDP");
       opMode = 0;
       sampleNb=0;
     }
-    else if(inByte=='i'){
-      Serial.println("Files info : ");
-      list_files();
-      memory_info();
-    }
-    else delay(2);
   }
-  else delay(1);
-  //print to serial
-  if (opMode == 1) {
-    
-    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-    int sensorValue = analogRead(A0);
-    Serial.print(timer0);
-    Serial.print(" ");
-    Serial.print(ax);
-    Serial.print(" ");
-    Serial.print(ay);
-    Serial.print(" ");
-    Serial.print(az);
-    Serial.print(" ");
-    Serial.print(gx);
-    Serial.print(" ");
-    Serial.print(gy);
-    Serial.print(" ");
-    Serial.print(gz);
-    Serial.print(" ");
-    Serial.println(sensorValue);
-    //delay(2);
-    
-    
-  }
-  //print in file
-  else if (opMode == 2) {
-   timer1=millis(); 
-    if(timer1-startTimer>1000) {
-    startTimer=timer1;  
-    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-    int sensorValue = analogRead(A0);
-    //fw.println("toto");
-   // fw.print("S: ");
-       //stop recording if <3.3v or more than 1 hour
-    if(sensorValue<600 /*|| sampleNb>9000*/) {
-       fw.close();
-       opMode=0;
-       Serial.print("Stop recording");
-       digitalWrite(2, HIGH);
-      }
-      else{
-    fw.print(sampleNb);
-    fw.print(" ");
-    fw.print(ax);
-    fw.print(" ");
-    fw.print(ay);
-    fw.print(" ");
-    fw.print(az);
-    fw.print(" ");
-    fw.print(gx);
-    fw.print(" ");
-    fw.print(gy);
-    fw.print(" ");
-    fw.print(gz);
-    fw.print(" ");
-    fw.println(sensorValue);
-    sampleNb++;
-      }
-    }
-    else delay(1);
-    //delay(2);
-   
-  }
-  else if(opMode == 3){
-    timer1=millis(); 
-    if(timer1-startTimer>100) {
-      sampleNb++;
-      startTimer=timer1;
-      //get data
-      accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-      //int sensorValue = analogRead(A0);
-      //send udp data
-      Udp.begin(localPort);
-      char msg[30];
-      Udp.beginPacket(host, 2390);
-     // sprintf(msg, "S: %d 2 3 a %d",ax,ay);
-      sprintf(msg, "%d %d %d",ax,ay,az);
-      Udp.write(msg);
-      Udp.endPacket();   
-      Serial.println(ax);
-      Serial.println(ay);
-      Serial.println(az);
-      }
-    else delay(2);
-    /*  accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-    int sensorValue = analogRead(A0);*/
-  }
-  else delay(2);
-  //read_memory();
-  //delay(100);
 }
