@@ -1,25 +1,32 @@
-#include <ETH.h>
+
+#ifdef ESP8266
+#include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
+
+#else
+
 #include <WiFi.h>
-#include <WiFiAP.h>
-#include <WiFiClient.h>
-#include <WiFiGeneric.h>
 #include <WiFiMulti.h>
-#include <WiFiScan.h>
+/*#include <WiFiClient.h>
 #include <WiFiServer.h>
+#include <ETH.h>
+#include <WiFiAP.h>
+#include <WiFiGeneric.h>
+#include <WiFiScan.h>
 #include <WiFiSTA.h>
 #include <WiFiType.h>
-#include <WiFiUdp.h>
-
-//V0.3 added UDP
-//0.31b testing write on memory until no battery or no space
-
-
-
-#include "FS.h"
+*/
 #include "SPIFFS.h"
-#include "Wire.h"
 #include <ESPmDNS.h>
 
+#endif
+
+
+#include <WiFiUdp.h>
+//V0.3 added UDP
+//0.31b testing write on memory until no battery or no space
+#include "FS.h"
+#include "Wire.h"
 // I2Cdev and MPU6050 must be installed as libraries, or else the .cpp/.h files
 // for both classes must be in the include path of your project
 #include "I2Cdev.h"
@@ -64,7 +71,11 @@ float freq = 10;  // max frequency: 333hz
 float period = 100; // min period: 3ms
 
 //wifi +UDP variables
-WiFiMulti WiFiMulti;
+#ifdef ESP8266
+ESP8266WiFiMulti WiFiMulti;
+#else
+WiFiMulti WiFiMulti; // ESP8266 : ESP8266WiFiMulti WiFiMulti;
+#endif
 WiFiClient client;
 const uint16_t port = 1000;
 const char * host = "192.168.43.38"; // ip or dns
@@ -74,7 +85,7 @@ unsigned int localPort = 2390;      // local port to listen on
 WiFiUDP Udp;
 
 File fw;
-/*
+#ifdef ESP8266
 void memory_info(){
     FSInfo fs_info;
     SPIFFS.info(fs_info);
@@ -91,6 +102,28 @@ void list_files(){
        Serial.println(f.size());
       }
 }
+#else
+/*
+void memory_info(){
+    FSInfo fs_info;
+    SPIFFS.info(fs_info);
+    Serial.print("totalBytes :");
+    Serial.println(fs_info.totalBytes);
+    Serial.print("usedBytes :");
+    Serial.println(fs_info.usedBytes);
+} */
+void list_files(){
+    File dir = SPIFFS.open("/data"); // ESP8266 : Dir dir = SPIFFS.openDir("/data");
+    for (int cnt = 0; true; ++cnt) { //ESP8266 : while (dir.next()) {
+       Serial.print(dir.name()); // ESP8266 : Serial.print(dir.fileName());
+       File f = dir.openNextFile("r"); // ESP8266 : File f = dir.openFile("r");
+       if (!f)
+       break;
+       Serial.print(" ");
+       Serial.println(f.size());
+      }
+}
+#endif
 void read_memory() {
   // nothing to do for now, this is just a simple test
   File f = SPIFFS.open("/data/1.txt", "r");
@@ -104,6 +137,7 @@ void read_memory() {
   }
   f.close();
 }
+
 void Connect_Wifi() {
   //WiFiMulti.addAP("MotoG3", "z12345678");
   WiFi.persistent(false);
@@ -125,13 +159,14 @@ void Connect_Wifi() {
   delay(50);
   //WiFi.mode(WIFI_OFF);
 }
+/*
 void Send_Data() {
   Udp.begin(localPort);
   char msg[30];
   //accelgyro.getMotion9(&ax, &ay, &az, &gx, &gy, &gz, &mx, &my, &mz);
   Udp.beginPacket(host, 2390);
   sprintf(msg, "S: 1 2 3 a ");
-  Udp.write(msg);
+  Udp.write((uint8_t)msg);
   Udp.endPacket();
   // if(packetNumber<255) packetNumber ++;
   // else packetNumber=0;
@@ -427,20 +462,14 @@ void loop() {
     else if (inByte.substring(0,1) == "d") {
       Serial.println("Listing dir :");
       digitalWrite(2, LOW);
-      File dir = SPIFFS.open("/data"); // ESP8266: Dir dir = SPIFFS.open("/data");
-      for (int cnt = 0; true; ++cnt) {
-        Serial.print(dir.name()); // ESP8266: Serial.print(dir.fileName());
-        File f = dir.openNextFile("r"); // ESP8266: File f = dir.openFile("r");
-        Serial.print(" ");
-        Serial.println(f.size());
-      }
+      list_files();
       Serial.println("End of listing");
       digitalWrite(2, HIGH);
     }
     //read the data
     else if (inByte.substring(0,1) == "p") {
       Serial.println("Read");
-//      read_memory();
+      read_memory();
       Serial.println("End of Read");
     }
     //recording mode
@@ -502,7 +531,7 @@ void loop() {
     //file info
     else if(inByte.substring(0,1)=="i"){
       Serial.println("Files info : ");
-//      list_files();
+      list_files();
 //      memory_info();
     }
     // determines the frequency of the measurements
@@ -523,7 +552,7 @@ void loop() {
         //sending data via udp
     else if (inByte.substring(0,1) == "s") {
       Serial.println("Connecting to Wifi");
-//      Connect_Wifi();
+      Connect_Wifi();
      // Serial.println("Sending data ");
      // Send_Data();
      // Send_Data_From_File();
@@ -553,7 +582,12 @@ void loop() {
           Serial.print(" (");
           Serial.print(WiFi.RSSI(i));
           Serial.print(")");
+          #ifdef ESP8266
+          Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
+          #else
           Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? " " : "*"); // ESP8266: Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
+          #endif
+          
           delay(10); 
         }
       }
@@ -564,7 +598,7 @@ void loop() {
     //send data live via udp 
     else if(inByte.substring(0,1)=="u"){
        Serial.println("Start UDP");
-//       Connect_Wifi(); 
+       Connect_Wifi(); 
        startTimer=millis(); 
        opMode = 3;
     }
