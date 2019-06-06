@@ -7,15 +7,6 @@
 
 #include <WiFi.h>
 #include <WiFiMulti.h>
-/*#include <WiFiClient.h>
-#include <WiFiServer.h>
-#include <ETH.h>
-#include <WiFiAP.h>
-#include <WiFiGeneric.h>
-#include <WiFiScan.h>
-#include <WiFiSTA.h>
-#include <WiFiType.h>
-*/
 #include "SPIFFS.h"
 #include <ESPmDNS.h>
 
@@ -212,7 +203,7 @@ void Send_Data_From_File() {
 
 void onTick()
 {
-  
+  // opMode 1 affiche les données du capteur sur port série
   if (opMode == 1) {
     /*
     accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
@@ -251,7 +242,7 @@ void onTick()
       sampleNb ++;  
 
   }
-  //print in file
+  //opMode 2 enregistre les données dans un fichier
   else if (opMode == 2) {
 
     /*
@@ -305,6 +296,7 @@ void onTick()
 
    
   }
+  // opMode 3 transmet les données en WiFi
   else if(opMode == 3){
       sampleNb++;
 
@@ -602,6 +594,8 @@ void loop() {
        startTimer=millis(); 
        opMode = 3;
     }
+    // stops data live via UDP
+    
     else if(inByte.substring(0,1)=="U"){
       Serial.println("Stop UDP");
       opMode = 0;
